@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #242736;
+    --border: #2e3347;
+    --accent: #4f8ef7;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --tier1: #7c3aed;
+    --tier2: #0ea5e9;
+    --tier3: #f59e0b;
+    --tier4: #10b981;
+    --tier5: #3b82f6;
+    --cfd: #e879f9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif; font-size: 14px; min-height: 100vh; }
+
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .header h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .last-updated { font-size: 11px; color: var(--muted); }
+
+  .tab-bar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 2px; overflow-x: auto; flex-wrap: nowrap; }
+  .tab-group-label { font-size: 10px; color: var(--muted); padding: 14px 8px 0 12px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; align-self: flex-start; }
+  .tab-btn { background: none; border: none; color: var(--muted); padding: 12px 12px; cursor: pointer; font-size: 12px; font-weight: 500; border-bottom: 2px solid transparent; white-space: nowrap; transition: all 0.15s; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn.cfd-tab.active { color: var(--cfd); border-bottom-color: var(--cfd); }
+  .tab-divider { width: 1px; background: var(--border); margin: 8px 6px; }
+
+  .main { padding: 20px 24px; max-width: 1400px; margin: 0 auto; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .summary-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-value { font-size: 21px; font-weight: 700; letter-spacing: -0.5px; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+
+  .tier-section { margin-bottom: 24px; }
+  .tier-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .tier-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .tier-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .assets-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 12px; }
+  .asset-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
+  .asset-card:hover { border-color: var(--accent); }
+  .asset-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+  .asset-ticker { font-size: 15px; font-weight: 700; }
+  .asset-name { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+  .asset-price { font-size: 15px; font-weight: 600; text-align: right; }
+  .asset-price-label { font-size: 10px; color: var(--muted); text-align: right; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+  .chip { font-size: 10px; padding: 2px 7px; border-radius: 20px; font-weight: 600; }
+  .chip-cgt { background: rgba(34,197,94,0.15); color: var(--green); }
+  .chip-usd { background: rgba(79,142,247,0.15); color: var(--accent); }
+  .chip-role { background: rgba(100,100,120,0.2); color: var(--muted); }
+  .chip-cfd { background: rgba(232,121,249,0.15); color: var(--cfd); }
+  .asset-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .asset-stat-label { font-size: 10px; color: var(--muted); }
+  .asset-stat-value { font-size: 13px; font-weight: 600; }
+  .no-trades { color: var(--muted); font-size: 11px; margin-top: 8px; }
+
+  .charts-row { display: grid; grid-template-columns: 280px 1fr; gap: 16px; margin-bottom: 24px; }
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .chart-card h3 { font-size: 12px; font-weight: 600; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .chart-wrap { position: relative; height: 230px; }
+
+  /* Asset detail */
+  .asset-detail-header { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .asset-detail-title { font-size: 19px; font-weight: 700; }
+  .asset-detail-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .detail-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(145px, 1fr)); gap: 12px; margin-top: 14px; }
+  .detail-stat-label { font-size: 11px; color: var(--muted); }
+  .detail-stat-value { font-size: 17px; font-weight: 700; margin-top: 2px; }
+
+  /* Forms */
+  .trade-form { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .trade-form h3 { font-size: 12px; font-weight: 600; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 11px; color: var(--muted); font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 7px 10px; font-size: 13px; font-family: inherit; width: 100%; }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); }
+  .form-group textarea { resize: vertical; min-height: 56px; }
+  .form-actions { display: flex; gap: 8px; margin-top: 4px; }
+  .btn { padding: 8px 16px; border-radius: 6px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-cfd { background: var(--cfd); color: #000; }
+  .btn-secondary { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+  .btn-danger { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.2); padding: 4px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; }
+
+  /* Tables */
+  .trades-section { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+  .trades-section h3 { font-size: 12px; font-weight: 600; padding: 13px 20px; border-bottom: 1px solid var(--border); color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 600px; }
+  th { font-size: 10px; color: var(--muted); text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--border); font-weight: 500; text-transform: uppercase; letter-spacing: 0.4px; background: var(--surface2); white-space: nowrap; }
+  td { padding: 9px 14px; border-bottom: 1px solid rgba(46,51,71,0.5); font-size: 12px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .cost-avg-badge { background: rgba(79,142,247,0.15); color: var(--accent); padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .empty-state { text-align: center; padding: 36px; color: var(--muted); font-size: 13px; }
+
+  /* Silver scenario */
+  .scenario-section { margin-top: 16px; }
+  .scenario-inputs { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .scenario-inputs h3 { font-size: 12px; font-weight: 600; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; }
+  .scenario-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(265px, 1fr)); gap: 14px; }
+  .scenario-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; }
+  .scenario-card-title { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .scenario-target { font-size: 21px; font-weight: 700; color: var(--amber); margin-bottom: 14px; }
+  .scenario-chain { display: flex; flex-direction: column; gap: 7px; }
+  .scenario-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 11px; background: var(--surface2); border-radius: 6px; }
+  .scenario-row-label { font-size: 11px; color: var(--muted); }
+  .scenario-row-value { font-size: 13px; font-weight: 700; }
+  .scenario-arrow { text-align: center; color: var(--muted); font-size: 10px; padding: 0 2px; }
+  .scenario-final { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); }
+  .scenario-final .scenario-row-value { color: var(--green); font-size: 15px; }
+  .leverage-info { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 11px 15px; margin-bottom: 14px; font-size: 12px; line-height: 1.6; }
+  .leverage-info span { color: var(--amber); font-weight: 700; }
+
+  .avg-chart-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+  .avg-chart-wrap h3 { font-size: 12px; font-weight: 600; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; }
+  .avg-chart-inner { position: relative; height: 190px; }
+
+  .usd-notice { background: rgba(79,142,247,0.08); border: 1px solid rgba(79,142,247,0.2); border-radius: 8px; padding: 9px 13px; font-size: 12px; color: var(--accent); margin-bottom: 12px; }
+
+  /* CFD section */
+  .cfd-header { background: linear-gradient(135deg, rgba(232,121,249,0.08), rgba(232,121,249,0.02)); border: 1px solid rgba(232,121,249,0.25); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .cfd-header h2 { font-size: 16px; font-weight: 700; color: var(--cfd); }
+  .cfd-header p { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .cfd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .cfd-card { background: var(--surface); border: 1px solid rgba(232,121,249,0.2); border-radius: 10px; padding: 14px 16px; cursor: pointer; transition: border-color 0.15s; }
+  .cfd-card:hover { border-color: var(--cfd); }
+  .cfd-card-ticker { font-size: 15px; font-weight: 700; color: var(--cfd); }
+  .cfd-card-name { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .cfd-card-stats { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+  /* CFD account snapshot */
+  .cfd-snapshot { background: linear-gradient(135deg, rgba(232,121,249,0.06), rgba(232,121,249,0.01)); border: 1px solid rgba(232,121,249,0.3); border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; }
+  .cfd-snapshot-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .cfd-snapshot-top h3 { font-size: 13px; font-weight: 700; color: var(--cfd); text-transform: uppercase; letter-spacing: 0.5px; }
+  .cfd-snapshot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+  .cfd-snap-val { font-size: 18px; font-weight: 700; }
+  .cfd-open-trade { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+  .cfd-open-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px; }
+  .cfd-open-val { font-size: 13px; font-weight: 600; margin-top: 2px; }
+  .cfd-snapshot-edit { background: rgba(232,121,249,0.12); color: var(--cfd); border: 1px solid rgba(232,121,249,0.3); border-radius: 6px; padding: 5px 10px; font-size: 11px; font-weight: 600; cursor: pointer; }
+  .cfd-snapshot-form { margin-top: 12px; }
+  /* CFD monthly chart */
+  .monthly-bar-wrap { position: relative; height: 200px; }
+
+  /* P&L pill */
+  .pnl-pill { padding: 3px 9px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .pnl-pos { background: rgba(34,197,94,0.15); color: var(--green); }
+  .pnl-neg { background: rgba(239,68,68,0.12); color: var(--red); }
+
+  /* Section divider */
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  @media (max-width: 700px) {
+    .charts-row { grid-template-columns: 1fr; }
+    .main { padding: 12px; }
+    .form-row { grid-template-columns: 1fr 1fr; }
+    .tab-bar { padding: 0 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📊 Portfolio Tracker</h1>
+    <div class="header-sub">IBKR UCITS ETFs · IG CFDs · Data synced via Supabase — works on all devices</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <div id="priceStatus" style="font-size:11px;color:var(--muted);">⏳ Fetching prices…</div>
+    <div class="last-updated" id="lastUpdated"></div>
+    <button onclick="localStorage.removeItem('priceCache');updatePrices()" title="Force refresh prices" style="background:rgba(79,142,247,0.12);color:var(--accent);border:1px solid rgba(79,142,247,0.25);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;">↻ Prices</button>
+    <button onclick="clearAllData()" style="background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.25);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;">🗑 Clear All Data</button>
+  </div>
+</div>
+
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" onclick="showTab('overview')">Overview</button>
+  <div class="tab-divider"></div>
+  <span class="tab-group-label">IBKR ETFs</span>
+  <button class="tab-btn" onclick="showTab('asset-xeon')">XEON</button>
+  <button class="tab-btn" onclick="showTab('asset-euna')">EUNA</button>
+  <button class="tab-btn" onclick="showTab('asset-smh')">SMH</button>
+  <button class="tab-btn" onclick="showTab('asset-silv')">SILV ✦</button>
+  <button class="tab-btn" onclick="showTab('asset-isoe')">IS0E</button>
+  <button class="tab-btn" onclick="showTab('asset-exh1')">EXH1</button>
+  <button class="tab-btn" onclick="showTab('asset-sxrv')">SXRV</button>
+  <button class="tab-btn" onclick="showTab('asset-eqqq')">EQQQ</button>
+  <button class="tab-btn" onclick="showTab('asset-cmod')">CMOD</button>
+  <button class="tab-btn" onclick="showTab('asset-sxru')">SXRU</button>
+  <button class="tab-btn" onclick="showTab('asset-exs1')">EXS1</button>
+  <button class="tab-btn" onclick="showTab('asset-ib01')">IB01 $</button>
+  <div class="tab-divider"></div>
+  <span class="tab-group-label">IG CFDs</span>
+  <button class="tab-btn cfd-tab" onclick="showTab('cfd-overview')">CFD Summary</button>
+  <button class="tab-btn cfd-tab" onclick="showTab('cfd-dax')">DAX 40</button>
+  <button class="tab-btn cfd-tab" onclick="showTab('cfd-us500')">US 500</button>
+  <button class="tab-btn cfd-tab" onclick="showTab('cfd-wallst')">Wall St</button>
+  <button class="tab-btn cfd-tab" onclick="showTab('cfd-nas100')">NAS 100</button>
+</div>
+
+<div class="main">
+
+<!-- ══════════════════ OVERVIEW ══════════════════ -->
+<div class="tab-content active" id="tab-overview">
+  <div class="summary-row" id="summaryRow"></div>
+  <div class="charts-row">
+    <div class="chart-card">
+      <h3>ETF Allocation</h3>
+      <div class="chart-wrap"><canvas id="allocChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Cost Average History — ETFs</h3>
+      <div class="chart-wrap"><canvas id="avgChart"></canvas></div>
+    </div>
+  </div>
+  <div id="tierSections"></div>
+</div>
+
+<!-- ══════════════════ IBKR ASSET TABS ══════════════════ -->
+<div id="assetTabsContainer"></div>
+
+<!-- ══════════════════ CFD SUMMARY ══════════════════ -->
+<div class="tab-content" id="tab-cfd-overview">
+  <div class="cfd-header">
+    <h2>⚡ IG CFD Account</h2>
+    <p>Closed-trade log only · P&L entered as reported by IG in EUR · GBP contracts auto-converted by IG at close</p>
+  </div>
+  <div id="cfdAccountSnapshot"></div>
+  <div class="summary-row" id="cfdSummaryRow"></div>
+  <div class="charts-row" style="grid-template-columns:1fr 1fr;">
+    <div class="chart-card">
+      <h3>P&L by Instrument</h3>
+      <div class="chart-wrap"><canvas id="cfdByInst"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Monthly P&L (€)</h3>
+      <div class="chart-wrap"><canvas id="cfdMonthly"></canvas></div>
+    </div>
+  </div>
+  <div class="cfd-grid" id="cfdCards"></div>
+  <div class="trades-section">
+    <h3>All CFD Trades <span id="allCfdCount" style="color:var(--muted);font-weight:400"></span></h3>
+    <div class="table-wrap"><div id="allCfdTable"></div></div>
+  </div>
+</div>
+
+<!-- ══════════════════ CFD INSTRUMENT TABS ══════════════════ -->
+<div id="cfdTabsContainer"></div>
+
+</div><!-- .main -->
+
+<script>
+// ══════════════════ ASSETS DATA ══════════════════
+const ASSETS = [
+  { id:'xeon', ticker:'XEON', name:'Xtrackers II EUR Overnight Rate Swap UCITS ETF', role:'Capital storage · ESTR rate daily', tier:1, tierName:'Tax Vault', price:150.513, ccy:'EUR', yahoo:'XEON.DE' },
+  { id:'euna', ticker:'EUNA', name:'iShares Core Global Aggregate Bond EUR Hdg UCITS ETF', role:'Liquidity buffer · 4.20% YTM', tier:2, tierName:'Active Buffer', price:4.841, ccy:'EUR', yahoo:'EUNA.DE' },
+  { id:'smh',  ticker:'SMH',  name:'VanEck Semiconductor UCITS ETF', role:'AI/chip cycle satellite', tier:3, tierName:'Active Trading Satellites', price:90.60, ccy:'EUR', yahoo:'SMH.L' },
+  { id:'silv', ticker:'SILV', name:'Global X Silver Miners UCITS ETF', role:'Leveraged silver exposure · long DCA', tier:3, tierName:'Active Trading Satellites', price:34.850, ccy:'EUR', yahoo:'SILV.L', hasSilverModel:true },
+  { id:'isoe', ticker:'IS0E', name:'iShares Gold Producers UCITS ETF', role:'Gold miners · inflation hedge', tier:3, tierName:'Active Trading Satellites', price:36.255, ccy:'EUR', yahoo:'IS0E.L' },
+  { id:'exh1', ticker:'EXH1', name:'iShares STOXX Europe 600 Oil & Gas UCITS ETF', role:'EU energy majors · commodity satellite', tier:3, tierName:'Active Trading Satellites', price:58.56, ccy:'EUR', yahoo:'EXH1.DE' },
+  { id:'sxrv', ticker:'SXRV', name:'iShares Nasdaq-100 UCITS ETF', role:'US tech mega-cap growth', tier:3, tierName:'Active Trading Satellites', price:1514.40, ccy:'EUR', yahoo:'SXRV.DE' },
+  { id:'eqqq', ticker:'EQQQ', name:'Invesco Nasdaq-100 UCITS ETF', role:'US tech mega-cap growth', tier:3, tierName:'Active Trading Satellites', price:643.90, ccy:'EUR', yahoo:'EQQQ.L' },
+  { id:'cmod', ticker:'CMOD', name:'Invesco Bloomberg Commodity UCITS ETF', role:'Broad commodity macro hedge', tier:4, tierName:'Long-Term Macro Core', price:31.980, ccy:'EUR', yahoo:'CMOD.L' },
+  { id:'sxru', ticker:'SXRU', name:'iShares Dow Jones Industrial Average UCITS ETF', role:'30 US blue-chip mega-caps', tier:4, tierName:'Long-Term Macro Core', price:566.80, ccy:'EUR', yahoo:'SXRU.DE' },
+  { id:'exs1', ticker:'EXS1', name:'iShares Core DAX UCITS ETF', role:'German blue-chip index', tier:4, tierName:'Long-Term Macro Core', price:209.10, ccy:'EUR', yahoo:'EXS1.DE' },
+  { id:'ib01', ticker:'IB01', name:'iShares USD Treasury Bond 0-1yr UCITS ETF (LSE)', role:'USD cash proxy · 4.65% yield', tier:5, tierName:'Long-Term Wealth Core (USD)', price:104.50, ccy:'USD', yahoo:'IB01.L' },
+];
+
+const CFD_INSTRUMENTS = [
+  { id:'dax',    name:'Germany DAX 40',    ccy:'EUR', note:'EUR-denominated' },
+  { id:'us500',  name:'IG CFD US 500',     ccy:'GBP', note:'GBP contract · P&L converted to EUR by IG at close' },
+  { id:'wallst', name:'IG CFD Wall Street',ccy:'GBP', note:'GBP contract · P&L converted to EUR by IG at close' },
+  { id:'nas100', name:'IG CFD Nasdaq 100', ccy:'GBP', note:'GBP contract · P&L converted to EUR by IG at close' },
+];
+
+const TIER_COLORS = {1:'#7c3aed',2:'#0ea5e9',3:'#f59e0b',4:'#10b981',5:'#3b82f6'};
+const ASSET_COLORS = ['#4f8ef7','#22c55e','#f59e0b','#ef4444','#a78bfa','#fb923c','#34d399','#f472b6','#60a5fa','#fbbf24','#4ade80','#e879f9'];
+const CFD_COLORS = ['#e879f9','#c084fc','#a78bfa','#818cf8'];
+
+// ══════════════════ SUPABASE CONFIG ══════════════════
+const SB_URL = 'https://pelwcytxvuunacvqdqrb.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBlbHdjeXR4dnV1bmFjdnFkcXJiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0ODk4MDMsImV4cCI6MjEwODA2NTgwM30.Bar99IzwjMdNRBpzYYjG4O4gFUYzPkNTInaDgYTdAmw';
+const SB_HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
+
+async function sbGet(table, id) {
+  const r = await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}&select=data`, { headers: SB_HEADERS });
+  if (!r.ok) return null;
+  const rows = await r.json();
+  return rows.length ? rows[0].data : null;
+}
+
+async function sbSet(table, id, data) {
+  const body = JSON.stringify({ id, data, updated_at: new Date().toISOString() });
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+      body
+    });
+    if (r.ok) { touch(); return true; }
+    const errText = await r.text();
+    console.error('sbSet failed', table, id, r.status, errText);
+    showSaveError(`Save failed (${r.status}): ${errText}`);
+    return false;
+  } catch(e) {
+    console.error('sbSet error', table, id, e);
+    showSaveError(`Save error: ${e.message}`);
+    return false;
+  }
+}
+
+function showSaveError(msg) {
+  let el = document.getElementById('save-error-banner');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'save-error-banner';
+    el.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;max-width:90vw;text-align:center;';
+    document.body.appendChild(el);
+  }
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.display='none'; }, 8000);
+}
+
+// ══════════════════ IN-MEMORY CACHE ══════════════════
+// All data loaded at startup into _cache; writes go to Supabase + update cache
+const _cache = { ibkr: {}, cfd: {}, cfdAccount: null, silverParams: {} };
+
+async function loadAllData() {
+  const priceEl = document.getElementById('priceStatus');
+  if (priceEl) { priceEl.textContent = '⏳ Loading data…'; priceEl.style.color = 'var(--muted)'; }
+  try {
+    // Load all IBKR trades
+    await Promise.all(ASSETS.map(async a => {
+      const d = await sbGet('ibkr_trades', a.id);
+      _cache.ibkr[a.id] = Array.isArray(d) ? d : [];
+    }));
+    // Load all CFD trades
+    await Promise.all(CFD_INSTRUMENTS.map(async c => {
+      const d = await sbGet('cfd_trades', c.id);
+      _cache.cfd[c.id] = Array.isArray(d) ? d : [];
+    }));
+    // Load CFD account snapshot
+    const acc = await sbGet('cfd_account', 'singleton');
+    _cache.cfdAccount = acc;
+    // Load silver params
+    const sp = await sbGet('app_state', 'silver_params');
+    _cache.silverParams = sp || {};
+    touch();
+  } catch(e) {
+    if (priceEl) { priceEl.textContent = '⚠ DB load failed — check connection'; priceEl.style.color = 'var(--red)'; }
+  }
+}
+
+// ══════════════════ STORAGE (sync wrappers over cache) ══════════════════
+const store = {
+  trades: id => _cache.ibkr[id] || [],
+  saveTrades: async (id, t) => { _cache.ibkr[id] = t; await sbSet('ibkr_trades', id, t); },
+  cfdTrades: id => _cache.cfd[id] || [],
+  saveCfd: async (id, t) => { _cache.cfd[id] = t; await sbSet('cfd_trades', id, t); },
+  cfdAccount: () => _cache.cfdAccount,
+  saveCfdAccount: async a => { _cache.cfdAccount = a; await sbSet('cfd_account', 'singleton', a); },
+  silverParams: () => _cache.silverParams,
+  saveSilverParams: async p => { _cache.silverParams = p; await sbSet('app_state', 'silver_params', p); },
+};
+
+function touch() { const now = new Date().toISOString(); localStorage.setItem('lastUpdated', now); updateLastUpdated(); }
+function updateLastUpdated() {
+  const lu = localStorage.getItem('lastUpdated');
+  document.getElementById('lastUpdated').textContent = lu ? 'Synced: ' + new Date(lu).toLocaleString('en-GB') : '';
+}
+
+// ══════════════════ CALC ══════════════════
+function calcStats(trades) {
+  if (!trades.length) return { shares:0, totalCost:0, costAvg:0, chain:[] };
+  let shares=0, totalCost=0;
+  const chain = trades.map(t => {
+    shares += t.shares;
+    totalCost += t.shares*t.price + (t.commission||0);
+    return { date:t.date, shares, totalCost, costAvg: totalCost/shares };
+  });
+  return { shares, totalCost, costAvg: totalCost/shares, chain };
+}
+
+function cfdStats(id) {
+  const trades = store.cfdTrades(id);
+  if (!trades.length) return { count:0, wins:0, losses:0, totalPnl:0, avgWin:0, avgLoss:0, trades };
+  let totalPnl=0, wins=0, losses=0, sumWin=0, sumLoss=0;
+  trades.forEach(t => {
+    totalPnl += t.pnlEur;
+    if (t.pnlEur >= 0) { wins++; sumWin += t.pnlEur; } else { losses++; sumLoss += t.pnlEur; }
+  });
+  return { count:trades.length, wins, losses, totalPnl, avgWin: wins?sumWin/wins:0, avgLoss: losses?sumLoss/losses:0, trades };
+}
+
+function allCfdStats() {
+  let totalPnl=0, totalTrades=0, wins=0;
+  CFD_INSTRUMENTS.forEach(c => {
+    const s = cfdStats(c.id);
+    totalPnl += s.totalPnl; totalTrades += s.count; wins += s.wins;
+  });
+  return { totalPnl, totalTrades, wins, winRate: totalTrades ? wins/totalTrades*100 : 0 };
+}
+
+// ══════════════════ FORMAT ══════════════════
+const fmtDE = (n,d=2) => isNaN(n)||n===null ? '—' : n.toLocaleString('de-DE',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtSh = n => n.toLocaleString('de-DE',{minimumFractionDigits:0,maximumFractionDigits:4});
+const sym = ccy => ccy==='USD'?'$':'€';
+
+// ══════════════════ TABS ══════════════════
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById('tab-'+id);
+  if (el) el.classList.add('active');
+  const btn = [...document.querySelectorAll('.tab-btn')].find(b => b.getAttribute('onclick')===`showTab('${id}')`);
+  if (btn) btn.classList.add('active');
+  if (id==='overview') renderOverview();
+  else if (id==='cfd-overview') renderCfdOverview();
+  else if (id.startsWith('asset-')) renderAssetTab(id.replace('asset-',''));
+  else if (id.startsWith('cfd-') && id!=='cfd-overview') renderCfdTab(id.replace('cfd-',''));
+}
+
+// ══════════════════ OVERVIEW ══════════════════
+function renderOverview() {
+  let totalEUR=0, totalInvEUR=0, totalUSD=0, totalInvUSD=0, posCount=0;
+  ASSETS.forEach(a => {
+    const s = calcStats(store.trades(a.id));
+    if (s.shares>0) {
+      posCount++;
+      if (a.ccy==='EUR') { totalEUR += s.shares*a.price; totalInvEUR += s.totalCost; }
+      else { totalUSD += s.shares*a.price; totalInvUSD += s.totalCost; }
+    }
+  });
+  const cfd = allCfdStats();
+  const pnlEUR = totalEUR - totalInvEUR;
+  const pnlPct = totalInvEUR ? pnlEUR/totalInvEUR*100 : 0;
+  document.getElementById('summaryRow').innerHTML = `
+    <div class="stat-card"><div class="stat-label">EUR ETF Value</div><div class="stat-value">${fmtDE(totalEUR,0)} €</div><div class="stat-sub">${posCount} positions</div></div>
+    <div class="stat-card"><div class="stat-label">EUR Invested</div><div class="stat-value">${fmtDE(totalInvEUR,0)} €</div></div>
+    <div class="stat-card"><div class="stat-label">ETF P&L</div><div class="stat-value ${pnlEUR>=0?'pos':'neg'}">${pnlEUR>=0?'+':''}${fmtDE(pnlEUR,0)} €</div><div class="stat-sub ${pnlPct>=0?'pos':'neg'}">${pnlPct>=0?'+':''}${fmtDE(pnlPct)}%</div></div>
+    <div class="stat-card"><div class="stat-label">USD Sub-account</div><div class="stat-value" style="color:var(--accent)">${fmtDE(totalUSD,0)} $</div><div class="stat-sub">IB01 — excluded from EUR total</div></div>
+    <div class="stat-card" style="border-color:rgba(232,121,249,0.25)"><div class="stat-label">CFD Realised P&L</div><div class="stat-value ${cfd.totalPnl>=0?'pos':'neg'}">${cfd.totalPnl>=0?'+':''}${fmtDE(cfd.totalPnl,0)} €</div><div class="stat-sub">${cfd.totalTrades} closed trades · ${fmtDE(cfd.winRate,0)}% win rate</div></div>
+  `;
+
+  // Alloc chart
+  const actx = document.getElementById('allocChart');
+  if (actx._ch) actx._ch.destroy();
+  const allocData = ASSETS.map((a,i) => {
+    const s = calcStats(store.trades(a.id));
+    return { label:a.ticker, value:a.ccy==='EUR'?s.shares*a.price:0, color:ASSET_COLORS[i] };
+  }).filter(x=>x.value>0);
+  actx._ch = new Chart(actx, {
+    type:'doughnut',
+    data:{ labels:allocData.map(x=>x.label), datasets:[{ data:allocData.map(x=>x.value), backgroundColor:allocData.map(x=>x.color), borderWidth:1, borderColor:'#1a1d27' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ color:'#8892a4', font:{size:10}, boxWidth:9 } } } }
+  });
+
+  // Multi-line avg chart
+  const avgCtx = document.getElementById('avgChart');
+  if (avgCtx._ch) avgCtx._ch.destroy();
+  const datasets = [];
+  ASSETS.forEach((a,i) => {
+    const s = calcStats(store.trades(a.id));
+    if (s.chain.length>0) datasets.push({ label:a.ticker, data:s.chain.map(c=>({x:c.date,y:+c.costAvg.toFixed(4)})), borderColor:ASSET_COLORS[i], backgroundColor:'transparent', borderWidth:2, tension:0.3, pointRadius:3 });
+  });
+  if (datasets.length) {
+    avgCtx._ch = new Chart(avgCtx, { type:'line', data:{datasets}, options:{ responsive:true, maintainAspectRatio:false, parsing:false, scales:{ x:{type:'category',ticks:{color:'#8892a4',font:{size:10}},grid:{color:'#2e3347'}}, y:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'#2e3347'}} }, plugins:{ legend:{ labels:{ color:'#8892a4',font:{size:10},boxWidth:8 } } } } });
+  }
+
+  // Tier sections
+  const tiers = {};
+  ASSETS.forEach(a => { if (!tiers[a.tier]) tiers[a.tier]={name:a.tierName,color:TIER_COLORS[a.tier],assets:[]}; tiers[a.tier].assets.push(a); });
+  let html='';
+  Object.entries(tiers).sort((a,b)=>+a[0]-+b[0]).forEach(([tier,t]) => {
+    html += `<div class="tier-section"><div class="tier-header"><div class="tier-dot" style="background:${t.color}"></div><div class="tier-title" style="color:${t.color}">Tier ${tier} — ${t.name}</div></div><div class="assets-grid">`;
+    t.assets.forEach(a => {
+      const s = calcStats(store.trades(a.id));
+      const val = s.shares*a.price, pnl = val-s.totalCost, pnlPct = s.totalCost ? pnl/s.totalCost*100:0;
+      html += `<div class="asset-card" onclick="showTab('asset-${a.id}')">
+        <div class="asset-top">
+          <div><div class="asset-ticker" style="color:${t.color}">${a.ticker}</div><div class="asset-name">${a.name}</div></div>
+          <div><div class="asset-price">${fmtDE(a.price,3)} ${sym(a.ccy)}</div><div class="asset-price-label">current price</div></div>
+        </div>
+        <div class="chips">
+          <span class="chip chip-cgt">0% CGT</span>
+          ${a.ccy==='USD'?'<span class="chip chip-usd">USD</span>':''}
+          <span class="chip chip-role">${a.role.split('·')[0].trim()}</span>
+        </div>
+        ${s.shares>0 ? `<div class="asset-stats">
+          <div><div class="asset-stat-label">Shares</div><div class="asset-stat-value">${fmtSh(s.shares)}</div></div>
+          <div><div class="asset-stat-label">Avg Cost</div><div class="asset-stat-value">${fmtDE(s.costAvg,3)} ${sym(a.ccy)}</div></div>
+          <div><div class="asset-stat-label">Value</div><div class="asset-stat-value">${fmtDE(val,0)} ${sym(a.ccy)}</div></div>
+          <div><div class="asset-stat-label">P&L</div><div class="asset-stat-value ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${fmtDE(pnl,0)} ${sym(a.ccy)}</div></div>
+        </div>` : '<div class="no-trades">No trades yet — click to add</div>'}
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  document.getElementById('tierSections').innerHTML = html;
+  updateLastUpdated();
+}
+
+// ══════════════════ ETF ASSET TAB ══════════════════
+function renderAssetTab(id) {
+  const a = ASSETS.find(x=>x.id===id); if (!a) return;
+  const container = document.getElementById('tab-asset-'+id); if (!container) return;
+  const trades = store.trades(id);
+  const s = calcStats(trades);
+  const val = s.shares*a.price, pnl = val-s.totalCost, pnlPct = s.totalCost ? pnl/s.totalCost*100:0;
+  const cc = a.ccy, sm = sym(cc), tc = TIER_COLORS[a.tier];
+
+  let html = `
+    <div class="asset-detail-header">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+        <div>
+          <div class="asset-detail-title" style="color:${tc}">${a.ticker} — ${a.name}</div>
+          <div class="asset-detail-sub">${a.role} · Tier ${a.tier}: ${a.tierName}</div>
+        </div>
+        <div class="chips" style="flex-direction:column;align-items:flex-end">
+          <span class="chip chip-cgt">0% CGT</span>
+          ${cc==='USD'?'<span class="chip chip-usd">USD sub-account</span>':''}
+        </div>
+      </div>
+      <div class="detail-stats">
+        <div><div class="detail-stat-label">Current Price</div><div class="detail-stat-value">${fmtDE(a.price,3)} ${sm}</div></div>
+        <div><div class="detail-stat-label">Shares Held</div><div class="detail-stat-value">${s.shares>0?fmtSh(s.shares):'—'}</div></div>
+        <div><div class="detail-stat-label">Avg Cost</div><div class="detail-stat-value">${s.shares>0?fmtDE(s.costAvg,3)+' '+sm:'—'}</div></div>
+        <div><div class="detail-stat-label">Total Invested</div><div class="detail-stat-value">${s.totalCost>0?fmtDE(s.totalCost,2)+' '+sm:'—'}</div></div>
+        <div><div class="detail-stat-label">Position Value</div><div class="detail-stat-value">${val>0?fmtDE(val,2)+' '+sm:'—'}</div></div>
+        <div><div class="detail-stat-label">P&L</div><div class="detail-stat-value ${pnl>=0?'pos':'neg'}">${pnl!==0?(pnl>=0?'+':'')+fmtDE(pnl,2)+' '+sm:'—'}</div></div>
+      </div>
+    </div>
+    ${cc==='USD'?'<div class="usd-notice">⚠️ IB01 is USD-denominated, tracked in $, and excluded from EUR portfolio totals.</div>':''}
+    <div class="trade-form">
+      <h3>Add Trade</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input type="date" id="f_date_${id}" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="form-group"><label>Shares</label><input type="number" id="f_shares_${id}" placeholder="e.g. 100" step="0.0001" min="0"></div>
+        <div class="form-group"><label>Price per share (${sm})</label><input type="number" id="f_price_${id}" placeholder="${fmtDE(a.price,3)}" step="0.001" min="0"></div>
+        <div class="form-group"><label>Commission (${sm})</label><input type="number" id="f_comm_${id}" placeholder="0.00" step="0.01" min="0" value="0"></div>
+        ${a.hasSilverModel?`<div class="form-group"><label>Spot silver at buy (€/oz)</label><input type="number" id="f_spot_${id}" placeholder="e.g. 28.50" step="0.01" min="0"></div>`:''}
+        <div class="form-group"><label>Broker</label><input type="text" id="f_broker_${id}" placeholder="IBKR" value="IBKR"></div>
+      </div>
+      <div class="form-row"><div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="f_notes_${id}" placeholder="Optional notes…"></textarea></div></div>
+      <div class="form-actions">
+        <button class="btn btn-primary" onclick="addTrade('${id}')">+ Add Trade</button>
+        <button class="btn btn-secondary" onclick="clearEtfForm('${id}')">Clear</button>
+      </div>
+    </div>`;
+
+  if (s.chain.length>1) html += `<div class="avg-chart-wrap"><h3>Cost Average History</h3><div class="avg-chart-inner"><canvas id="avgChart_${id}"></canvas></div></div>`;
+
+  if (a.hasSilverModel) {
+    const sp = store.silverParams();
+    html += `<div class="scenario-section">
+      <div class="scenario-inputs">
+        <h3>⚡ Silver Scenario Model</h3>
+        <div class="form-row">
+          <div class="form-group"><label>Spot silver now (€/oz)</label><input type="number" id="sp_now" value="${sp.spotNow||''}" placeholder="e.g. 28.50" step="0.01" onchange="saveAndRenderScenario()"></div>
+          <div class="form-group"><label>Leverage factor</label><input type="number" id="sp_lev" value="${sp.leverage||1.35}" placeholder="1.35" step="0.01" onchange="saveAndRenderScenario()"></div>
+          <div class="form-group"><label>Target 1 — spot (€/oz)</label><input type="number" id="sp_t1" value="${sp.target1||500}" placeholder="500" step="10" onchange="saveAndRenderScenario()"></div>
+          <div class="form-group"><label>Target 2 — spot (€/oz)</label><input type="number" id="sp_t2" value="${sp.target2||600}" placeholder="600" step="10" onchange="saveAndRenderScenario()"></div>
+        </div>
+      </div>
+      <div id="scenarioCards"></div>
+    </div>`;
+  }
+
+  html += `<div class="trades-section">
+    <h3>Trade Log <span style="color:var(--muted);font-weight:400">${trades.length} trade${trades.length!==1?'s':''}</span></h3>
+    ${trades.length===0 ? '<div class="empty-state">No trades yet. Add your first trade above.</div>' : `
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Date</th><th>Shares</th><th>Price</th><th>Commission</th><th>Trade Cost</th><th>Running Avg</th>${a.hasSilverModel?'<th>Spot at Buy</th>':''}<th>Broker</th><th>Notes</th><th></th></tr></thead>
+      <tbody>${trades.map((t,i) => `<tr>
+        <td>${i+1}</td><td>${t.date}</td><td>${fmtSh(t.shares)}</td>
+        <td>${fmtDE(t.price,3)} ${sm}</td><td>${fmtDE(t.commission||0,2)} ${sm}</td>
+        <td>${fmtDE(t.shares*t.price+(t.commission||0),2)} ${sm}</td>
+        <td><span class="cost-avg-badge">${fmtDE(s.chain[i].costAvg,4)} ${sm}</span></td>
+        ${a.hasSilverModel?`<td>${t.spotAtBuy?fmtDE(t.spotAtBuy,2)+' €/oz':'—'}</td>`:''}
+        <td>${t.broker||'IBKR'}</td>
+        <td style="max-width:130px;color:var(--muted)">${t.notes||''}</td>
+        <td><button class="btn-danger" onclick="deleteEtfTrade('${id}',${i})">✕</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`}
+  </div>`;
+
+  container.innerHTML = html;
+
+  if (s.chain.length>1) setTimeout(()=>{
+    const ctx = document.getElementById('avgChart_'+id);
+    if (!ctx) return;
+    if (ctx._ch) ctx._ch.destroy();
+    ctx._ch = new Chart(ctx, { type:'line', data:{ labels:s.chain.map(c=>c.date), datasets:[{ label:'Cost Average', data:s.chain.map(c=>c.costAvg), borderColor:tc, backgroundColor:'transparent', borderWidth:2, tension:0.3, pointRadius:4 }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'#2e3347'}}, y:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'#2e3347'}} }, plugins:{legend:{display:false}} } });
+  }, 50);
+
+  if (a.hasSilverModel) setTimeout(renderScenario, 50);
+}
+
+// ══════════════════ ETF TRADE ACTIONS ══════════════════
+async function addTrade(id) {
+  const a = ASSETS.find(x=>x.id===id);
+  const date = document.getElementById('f_date_'+id)?.value;
+  const shares = parseFloat(document.getElementById('f_shares_'+id)?.value);
+  const price = parseFloat(document.getElementById('f_price_'+id)?.value);
+  const commission = parseFloat(document.getElementById('f_comm_'+id)?.value||'0');
+  const broker = document.getElementById('f_broker_'+id)?.value||'IBKR';
+  const notes = document.getElementById('f_notes_'+id)?.value||'';
+  const spotAtBuy = a.hasSilverModel ? parseFloat(document.getElementById('f_spot_'+id)?.value||'0') : null;
+  if (!date||isNaN(shares)||shares<=0||isNaN(price)||price<=0) { alert('Date, shares and price are required.'); return; }
+  const trades = store.trades(id);
+  const trade = { date, shares, price, commission:isNaN(commission)?0:commission, broker, notes };
+  if (a.hasSilverModel && spotAtBuy>0) trade.spotAtBuy = spotAtBuy;
+  trades.push(trade);
+  trades.sort((a,b)=>a.date.localeCompare(b.date));
+  await store.saveTrades(id, trades);
+  renderAssetTab(id);
+}
+
+async function deleteEtfTrade(id, idx) {
+  if (!confirm('Delete this trade?')) return;
+  const trades = store.trades(id);
+  trades.splice(idx,1);
+  await store.saveTrades(id, trades);
+  renderAssetTab(id);
+}
+
+function clearEtfForm(id) {
+  ['f_shares_','f_price_','f_comm_','f_notes_','f_spot_'].forEach(p => { const el=document.getElementById(p+id); if(el) el.value=''; });
+  const b=document.getElementById('f_broker_'+id); if(b) b.value='IBKR';
+}
+
+// ══════════════════ SILVER SCENARIO ══════════════════
+async function saveAndRenderScenario() {
+  await store.saveSilverParams({ spotNow:parseFloat(document.getElementById('sp_now')?.value||'0'), leverage:parseFloat(document.getElementById('sp_lev')?.value||'1.35'), target1:parseFloat(document.getElementById('sp_t1')?.value||'500'), target2:parseFloat(document.getElementById('sp_t2')?.value||'600') });
+  renderScenario();
+}
+function renderScenario() {
+  const el = document.getElementById('scenarioCards'); if (!el) return;
+  const spotNow = parseFloat(document.getElementById('sp_now')?.value||'0');
+  const leverage = parseFloat(document.getElementById('sp_lev')?.value||'1.35');
+  const target1 = parseFloat(document.getElementById('sp_t1')?.value||'500');
+  const target2 = parseFloat(document.getElementById('sp_t2')?.value||'600');
+  const trades = store.trades('silv');
+  const s = calcStats(trades);
+  if (isNaN(spotNow)||spotNow<=0||s.costAvg<=0) { el.innerHTML='<div style="color:var(--muted);font-size:13px;padding:12px">Enter current spot price and add at least one SILV trade to see projections.</div>'; return; }
+  const ft = trades.find(t=>t.spotAtBuy>0);
+  let lev = leverage;
+  if (ft && ft.spotAtBuy>0 && spotNow>ft.spotAtBuy) { const lv = Math.log(s.costAvg/ft.price)/Math.log(spotNow/ft.spotAtBuy); if (!isNaN(lv)&&isFinite(lv)) lev=lv; }
+  function card(target, label) {
+    const sm = target/spotNow, silvM = Math.pow(sm,lev), silvP = s.costAvg*silvM, posV = s.shares*silvP, pnl = posV-s.totalCost;
+    return `<div class="scenario-card">
+      <div class="scenario-card-title">${label}</div>
+      <div class="scenario-target">Spot → ${fmtDE(target,0)} €/oz</div>
+      <div class="scenario-chain">
+        <div class="scenario-row"><span class="scenario-row-label">Spot multiplier</span><span class="scenario-row-value">${fmtDE(sm,2)}×</span></div>
+        <div class="scenario-arrow">↓ × leverage ${fmtDE(lev,2)}</div>
+        <div class="scenario-row"><span class="scenario-row-label">SILV multiplier</span><span class="scenario-row-value" style="color:var(--amber)">${fmtDE(silvM,2)}×</span></div>
+        <div class="scenario-arrow">↓ × entry ${fmtDE(s.costAvg,3)} €</div>
+        <div class="scenario-row"><span class="scenario-row-label">SILV target price</span><span class="scenario-row-value">${fmtDE(silvP,2)} €</span></div>
+        <div class="scenario-arrow">↓ × ${fmtSh(s.shares)} shares</div>
+        <div class="scenario-row scenario-final"><span class="scenario-row-label">Position value</span><span class="scenario-row-value">${fmtDE(posV,2)} €</span></div>
+        <div class="scenario-row" style="background:rgba(34,197,94,0.05)"><span class="scenario-row-label">P&L on position</span><span class="scenario-row-value ${pnl>=0?'pos':'neg'}">${pnl>=0?'+':''}${fmtDE(pnl,2)} €</span></div>
+      </div>
+    </div>`;
+  }
+  el.innerHTML = `<div class="leverage-info">Leverage: <span>${fmtDE(lev,2)}×</span>${ft?' (from first buy)':' (manual)'} · Entry avg: <span>${fmtDE(s.costAvg,4)} €</span> · Shares: <span>${fmtSh(s.shares)}</span></div>
+  <div class="scenario-cards">${card(target1,'Target 1')}${card(target2,'Target 2')}${card(800,'Bull Case')}</div>`;
+}
+
+// ══════════════════ CFD ACCOUNT SNAPSHOT ══════════════════
+function renderCfdSnapshot(editMode) {
+  const el = document.getElementById('cfdAccountSnapshot');
+  const acc = store.cfdAccount();
+
+  if (editMode || !acc) {
+    const a = acc || { statementDate:'2026-10-18', funds:3129.93, equity:2026.33,
+      openTrades:[{ instrument:'Germany 40 Cash (DAX)', direction:'SHORT', contracts:2,
+        openDate:'2026-10-08', openPrice:24927.8, stopLevel:25927.8, runningPnl:-1103.60, deposit:2492.78 }] };
+    el.innerHTML = `<div class="cfd-snapshot">
+      <div class="cfd-snapshot-top"><h3>📋 Account Snapshot</h3><span style="font-size:11px;color:var(--muted)">Update from your daily IG statement</span></div>
+      <div class="cfd-snapshot-form">
+        <div class="form-row">
+          <div class="form-group"><label>Statement Date</label><input type="date" id="csDate" value="${a.statementDate}"></div>
+          <div class="form-group"><label>Funds (€)</label><input type="number" step="0.01" id="csFunds" value="${a.funds}" placeholder="3129.93"></div>
+          <div class="form-group"><label>Equity (€)</label><input type="number" step="0.01" id="csEquity" value="${a.equity}" placeholder="2026.33"></div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin:8px 0 6px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">Open Position</div>
+        <div class="form-row">
+          <div class="form-group"><label>Instrument</label><input type="text" id="csInst" value="${a.openTrades[0]?.instrument||''}" placeholder="Germany 40 Cash (DAX)"></div>
+          <div class="form-group"><label>Direction</label><select id="csDir"><option value="SHORT" ${(a.openTrades[0]?.direction||'SHORT')==='SHORT'?'selected':''}>SHORT</option><option value="LONG" ${(a.openTrades[0]?.direction)==='LONG'?'selected':''}>LONG</option><option value="">None</option></select></div>
+          <div class="form-group"><label>Contracts</label><input type="number" step="1" id="csContracts" value="${a.openTrades[0]?.contracts||''}" placeholder="2"></div>
+          <div class="form-group"><label>Open Date</label><input type="date" id="csOpenDate" value="${a.openTrades[0]?.openDate||''}"></div>
+          <div class="form-group"><label>Open Price</label><input type="number" step="0.1" id="csOpenPrice" value="${a.openTrades[0]?.openPrice||''}" placeholder="24927.8"></div>
+          <div class="form-group"><label>Stop Level</label><input type="number" step="0.1" id="csStop" value="${a.openTrades[0]?.stopLevel||''}" placeholder="25927.8"></div>
+          <div class="form-group"><label>Running P&L (€)</label><input type="number" step="0.01" id="csPnl" value="${a.openTrades[0]?.runningPnl||''}" placeholder="-1103.60"></div>
+          <div class="form-group"><label>Deposit Required (€)</label><input type="number" step="0.01" id="csDeposit" value="${a.openTrades[0]?.deposit||''}" placeholder="2492.78"></div>
+        </div>
+        <button class="btn" onclick="saveCfdSnapshot()" style="margin-top:4px">💾 Save Snapshot</button>
+        ${acc ? `<button class="btn" onclick="renderCfdSnapshot(false)" style="margin-top:4px;margin-left:8px;background:var(--surface2);color:var(--muted)">Cancel</button>` : ''}
+      </div>
+    </div>`;
+    return;
+  }
+
+  const ot = acc.openTrades && acc.openTrades[0];
+  const pnlColor = !ot ? '' : (ot.runningPnl >= 0 ? 'var(--green)' : 'var(--red)');
+  const dirColor = !ot ? '' : (ot.direction === 'LONG' ? 'var(--green)' : 'var(--red)');
+  el.innerHTML = `<div class="cfd-snapshot">
+    <div class="cfd-snapshot-top">
+      <h3>📋 Account Snapshot · <span style="font-weight:400;color:var(--muted)">${acc.statementDate}</span></h3>
+      <button class="cfd-snapshot-edit" onclick="renderCfdSnapshot(true)">✏ Update</button>
+    </div>
+    <div class="cfd-snapshot-grid">
+      <div class="stat-card" style="border-color:rgba(232,121,249,0.2)"><div class="stat-label">Funds</div><div class="cfd-snap-val">${fmtDE(acc.funds,2)} €</div><div class="stat-sub">Cash balance</div></div>
+      <div class="stat-card" style="border-color:rgba(232,121,249,0.2)"><div class="stat-label">Equity</div><div class="cfd-snap-val ${acc.equity>=acc.funds?'pos':'neg'}">${fmtDE(acc.equity,2)} €</div><div class="stat-sub">Funds + running P&L</div></div>
+      ${ot ? `<div class="stat-card" style="border-color:rgba(232,121,249,0.2)"><div class="stat-label">Running P&L</div><div class="cfd-snap-val" style="color:${pnlColor}">${ot.runningPnl>=0?'+':''}${fmtDE(ot.runningPnl,2)} €</div><div class="stat-sub">Open position</div></div>
+      <div class="stat-card" style="border-color:rgba(232,121,249,0.2)"><div class="stat-label">Deposit Used</div><div class="cfd-snap-val">${fmtDE(ot.deposit,2)} €</div><div class="stat-sub">Margin required</div></div>` : ''}
+    </div>
+    ${ot ? `<div class="cfd-open-trade">
+      <div><div class="cfd-open-label">Instrument</div><div class="cfd-open-val" style="color:var(--cfd)">${ot.instrument}</div></div>
+      <div><div class="cfd-open-label">Direction</div><div class="cfd-open-val" style="color:${dirColor}">${ot.direction} ${ot.contracts} contract${ot.contracts!==1?'s':''}</div></div>
+      <div><div class="cfd-open-label">Open Date</div><div class="cfd-open-val">${ot.openDate||'—'}</div></div>
+      <div><div class="cfd-open-label">Open Price</div><div class="cfd-open-val">${fmtDE(ot.openPrice,1)}</div></div>
+      <div><div class="cfd-open-label">Stop Level</div><div class="cfd-open-val" style="color:var(--amber)">${ot.stopLevel?fmtDE(ot.stopLevel,1):'—'}</div></div>
+      <div><div class="cfd-open-label">As of</div><div class="cfd-open-val" style="color:var(--muted)">${acc.statementDate}</div></div>
+    </div>` : `<div style="font-size:12px;color:var(--muted);margin-top:8px">No open positions</div>`}
+  </div>`;
+}
+
+async function saveCfdSnapshot() {
+  const getV = id => { const el=document.getElementById(id); return el?el.value.trim():''; };
+  const getN = id => { const el=document.getElementById(id); return el&&el.value!==''?parseFloat(el.value):null; };
+  const inst = getV('csInst'), dir = getV('csDir');
+  const openTrades = inst ? [{ instrument:inst, direction:dir, contracts:getN('csContracts')||0,
+    openDate:getV('csOpenDate'), openPrice:getN('csOpenPrice')||0, stopLevel:getN('csStop'),
+    runningPnl:getN('csPnl')||0, deposit:getN('csDeposit')||0 }] : [];
+  await store.saveCfdAccount({ statementDate:getV('csDate'), funds:getN('csFunds')||0, equity:getN('csEquity')||0, openTrades });
+  renderCfdSnapshot(false);
+}
+
+// ══════════════════ CFD OVERVIEW ══════════════════
+function renderCfdOverview() {
+  renderCfdSnapshot(false);
+  const total = allCfdStats();
+  let bestInst='—', bestPnl=0;
+  CFD_INSTRUMENTS.forEach(c => { const s=cfdStats(c.id); if(s.totalPnl>bestPnl){bestPnl=s.totalPnl;bestInst=c.name;} });
+
+  document.getElementById('cfdSummaryRow').innerHTML = `
+    <div class="stat-card" style="border-color:rgba(232,121,249,0.3)"><div class="stat-label">Total Realised P&L</div><div class="stat-value ${total.totalPnl>=0?'pos':'neg'}">${total.totalPnl>=0?'+':''}${fmtDE(total.totalPnl,2)} €</div></div>
+    <div class="stat-card"><div class="stat-label">Total Trades</div><div class="stat-value">${total.totalTrades}</div></div>
+    <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value ${total.winRate>=50?'pos':''}">${fmtDE(total.winRate,1)}%</div><div class="stat-sub">${total.wins} wins / ${total.totalTrades-total.wins} losses</div></div>
+    <div class="stat-card"><div class="stat-label">Best Instrument</div><div class="stat-value" style="font-size:15px;color:var(--cfd)">${bestInst}</div><div class="stat-sub">${bestPnl>0?'+':''}${fmtDE(bestPnl,0)} € realised</div></div>
+  `;
+
+  // By instrument bar
+  const instCtx = document.getElementById('cfdByInst');
+  if (instCtx._ch) instCtx._ch.destroy();
+  const instData = CFD_INSTRUMENTS.map((c,i) => ({ label:c.id.toUpperCase(), pnl:cfdStats(c.id).totalPnl, color:CFD_COLORS[i] }));
+  instCtx._ch = new Chart(instCtx, {
+    type:'bar',
+    data:{ labels:instData.map(x=>x.label), datasets:[{ data:instData.map(x=>x.pnl), backgroundColor:instData.map(x=>x.pnl>=0?'rgba(34,197,94,0.6)':'rgba(239,68,68,0.5)'), borderColor:instData.map(x=>x.pnl>=0?'#22c55e':'#ef4444'), borderWidth:1 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#8892a4',font:{size:11}},grid:{color:'#2e3347'}}, y:{ticks:{color:'#8892a4',font:{size:11},callback:v=>fmtDE(v,0)+' €'},grid:{color:'#2e3347'}} } }
+  });
+
+  // Monthly P&L
+  const monthlyCtx = document.getElementById('cfdMonthly');
+  if (monthlyCtx._ch) monthlyCtx._ch.destroy();
+  const monthly = {};
+  CFD_INSTRUMENTS.forEach(c => {
+    store.cfdTrades(c.id).forEach(t => {
+      const m = t.closeDate ? t.closeDate.slice(0,7) : t.openDate.slice(0,7);
+      monthly[m] = (monthly[m]||0) + t.pnlEur;
+    });
+  });
+  const months = Object.keys(monthly).sort();
+  if (months.length) {
+    monthlyCtx._ch = new Chart(monthlyCtx, {
+      type:'bar',
+      data:{ labels:months, datasets:[{ data:months.map(m=>monthly[m]), backgroundColor:months.map(m=>monthly[m]>=0?'rgba(34,197,94,0.6)':'rgba(239,68,68,0.5)'), borderColor:months.map(m=>monthly[m]>=0?'#22c55e':'#ef4444'), borderWidth:1 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{ticks:{color:'#8892a4',font:{size:10}},grid:{color:'#2e3347'}}, y:{ticks:{color:'#8892a4',font:{size:10},callback:v=>fmtDE(v,0)+' €'},grid:{color:'#2e3347'}} } }
+    });
+  }
+
+  // Cards
+  let cards='';
+  CFD_INSTRUMENTS.forEach(c => {
+    const s=cfdStats(c.id);
+    cards += `<div class="cfd-card" onclick="showTab('cfd-${c.id}')">
+      <div class="cfd-card-ticker">${c.id.toUpperCase()}</div>
+      <div class="cfd-card-name">${c.name}</div>
+      <div class="chips" style="margin-top:6px"><span class="chip chip-cfd">${c.ccy} contract</span></div>
+      <div class="cfd-card-stats">
+        <div><div class="asset-stat-label">Trades</div><div class="asset-stat-value">${s.count}</div></div>
+        <div><div class="asset-stat-label">Win Rate</div><div class="asset-stat-value ${s.count?s.wins/s.count>=0.5?'pos':'neg':''}">${s.count?fmtDE(s.wins/s.count*100,0)+'%':'—'}</div></div>
+        <div><div class="asset-stat-label">Total P&L</div><div class="asset-stat-value ${s.totalPnl>=0?'pos':'neg'}">${s.totalPnl>=0?'+':''}${fmtDE(s.totalPnl,0)} €</div></div>
+        <div><div class="asset-stat-label">Avg Win</div><div class="asset-stat-value pos">${s.wins?'+'+fmtDE(s.avgWin,0)+' €':'—'}</div></div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('cfdCards').innerHTML = cards;
+
+  // All trades table
+  const allTrades = [];
+  CFD_INSTRUMENTS.forEach(c => { store.cfdTrades(c.id).forEach(t => allTrades.push({...t, inst:c.id.toUpperCase(), instName:c.name})); });
+  allTrades.sort((a,b)=>(b.closeDate||b.openDate).localeCompare(a.closeDate||a.openDate));
+  document.getElementById('allCfdCount').textContent = `— ${allTrades.length} total`;
+  document.getElementById('allCfdTable').innerHTML = allTrades.length===0 ? '<div class="empty-state">No CFD trades recorded yet.</div>' : `
+    <table>
+      <thead><tr><th>Instrument</th><th>Direction</th><th>Open Date</th><th>Close Date</th><th>Open Price</th><th>Close Price</th><th>Size</th><th>P&L (€)</th><th>Notes</th></tr></thead>
+      <tbody>${allTrades.map(t=>`<tr>
+        <td style="font-weight:600;color:var(--cfd)">${t.inst}</td>
+        <td><span style="color:${t.direction==='LONG'?'var(--green)':'var(--red)'};font-weight:600">${t.direction||'—'}</span></td>
+        <td>${t.openDate||'—'}</td><td>${t.closeDate||'—'}</td>
+        <td>${fmtDE(t.openPrice,2)}</td><td>${fmtDE(t.closePrice,2)}</td>
+        <td>${t.size||'—'}</td>
+        <td><span class="pnl-pill ${t.pnlEur>=0?'pnl-pos':'pnl-neg'}">${t.pnlEur>=0?'+':''}${fmtDE(t.pnlEur,2)} €</span></td>
+        <td style="color:var(--muted);max-width:130px">${t.notes||''}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+// ══════════════════ CFD INSTRUMENT TAB ══════════════════
+function renderCfdTab(id) {
+  const c = CFD_INSTRUMENTS.find(x=>x.id===id); if(!c) return;
+  const container = document.getElementById('tab-cfd-'+id); if(!container) return;
+  const s = cfdStats(id);
+
+  let html = `
+    <div class="asset-detail-header" style="border-color:rgba(232,121,249,0.3)">
+      <div><div class="asset-detail-title" style="color:var(--cfd)">${c.name}</div>
+      <div class="asset-detail-sub">${c.note} · IG CFD Account</div></div>
+      <div class="detail-stats">
+        <div><div class="detail-stat-label">Closed Trades</div><div class="detail-stat-value">${s.count}</div></div>
+        <div><div class="detail-stat-label">Win Rate</div><div class="detail-stat-value ${s.count&&s.wins/s.count>=0.5?'pos':'neg'}">${s.count?fmtDE(s.wins/s.count*100,1)+'%':'—'}</div></div>
+        <div><div class="detail-stat-label">Total P&L</div><div class="detail-stat-value ${s.totalPnl>=0?'pos':'neg'}">${s.totalPnl>=0?'+':''}${fmtDE(s.totalPnl,2)} €</div></div>
+        <div><div class="detail-stat-label">Avg Win</div><div class="detail-stat-value pos">${s.wins?'+'+fmtDE(s.avgWin,2)+' €':'—'}</div></div>
+        <div><div class="detail-stat-label">Avg Loss</div><div class="detail-stat-value neg">${s.losses?fmtDE(s.avgLoss,2)+' €':'—'}</div></div>
+        <div><div class="detail-stat-label">Wins / Losses</div><div class="detail-stat-value">${s.wins} / ${s.losses}</div></div>
+      </div>
+    </div>
+    <div class="trade-form" style="border-color:rgba(232,121,249,0.2)">
+      <h3>Log Closed Trade</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Direction</label><select id="cf_dir_${id}"><option value="LONG">LONG</option><option value="SHORT">SHORT</option></select></div>
+        <div class="form-group"><label>Open Date</label><input type="date" id="cf_open_${id}" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="form-group"><label>Close Date</label><input type="date" id="cf_close_${id}" value="${new Date().toISOString().split('T')[0]}"></div>
+        <div class="form-group"><label>Open Price</label><input type="number" id="cf_oprice_${id}" placeholder="e.g. 18500" step="0.01" min="0"></div>
+        <div class="form-group"><label>Close Price</label><input type="number" id="cf_cprice_${id}" placeholder="e.g. 19000" step="0.01" min="0"></div>
+        <div class="form-group"><label>Size / Contracts</label><input type="number" id="cf_size_${id}" placeholder="e.g. 1" step="0.01" min="0"></div>
+        <div class="form-group"><label>P&L as reported by IG (€)</label><input type="number" id="cf_pnl_${id}" placeholder="e.g. 450.00 or -120.00" step="0.01"></div>
+      </div>
+      <div class="form-row"><div class="form-group" style="grid-column:1/-1"><label>Notes</label><textarea id="cf_notes_${id}" placeholder="Strategy, setup notes…"></textarea></div></div>
+      <div class="form-actions">
+        <button class="btn btn-cfd" onclick="addCfdTrade('${id}')">+ Log Trade</button>
+        <button class="btn btn-secondary" onclick="clearCfdForm('${id}')">Clear</button>
+      </div>
+    </div>
+    <div class="trades-section">
+      <h3>Trade Log <span style="color:var(--muted);font-weight:400">${s.trades.length} trade${s.trades.length!==1?'s':''}</span></h3>
+      ${s.trades.length===0 ? '<div class="empty-state">No trades logged yet.</div>' : `
+      <div class="table-wrap"><table>
+        <thead><tr><th>#</th><th>Dir</th><th>Open Date</th><th>Close Date</th><th>Open Price</th><th>Close Price</th><th>Size</th><th>P&L (€)</th><th>Running P&L</th><th>Notes</th><th></th></tr></thead>
+        <tbody>${(()=>{
+          let running=0;
+          return s.trades.map((t,i) => {
+            running += t.pnlEur;
+            return `<tr>
+              <td>${i+1}</td>
+              <td><span style="color:${t.direction==='LONG'?'var(--green)':'var(--red)'};font-weight:700">${t.direction||'—'}</span></td>
+              <td>${t.openDate||'—'}</td><td>${t.closeDate||'—'}</td>
+              <td>${fmtDE(t.openPrice,2)}</td><td>${fmtDE(t.closePrice,2)}</td>
+              <td>${t.size||'—'}</td>
+              <td><span class="pnl-pill ${t.pnlEur>=0?'pnl-pos':'pnl-neg'}">${t.pnlEur>=0?'+':''}${fmtDE(t.pnlEur,2)} €</span></td>
+              <td style="font-weight:600;color:${running>=0?'var(--green)':'var(--red)'}">${running>=0?'+':''}${fmtDE(running,2)} €</td>
+              <td style="color:var(--muted);max-width:130px">${t.notes||''}</td>
+              <td><button class="btn-danger" onclick="deleteCfdTrade('${id}',${i})">✕</button></td>
+            </tr>`;
+          }).join('');
+        })()}</tbody>
+      </table></div>`}
+    </div>`;
+
+  container.innerHTML = html;
+}
+
+// ══════════════════ CFD TRADE ACTIONS ══════════════════
+async function addCfdTrade(id) {
+  const direction = document.getElementById('cf_dir_'+id)?.value;
+  const openDate = document.getElementById('cf_open_'+id)?.value;
+  const closeDate = document.getElementById('cf_close_'+id)?.value;
+  const openPrice = parseFloat(document.getElementById('cf_oprice_'+id)?.value);
+  const closePrice = parseFloat(document.getElementById('cf_cprice_'+id)?.value);
+  const size = document.getElementById('cf_size_'+id)?.value||'';
+  const pnlEur = parseFloat(document.getElementById('cf_pnl_'+id)?.value);
+  const notes = document.getElementById('cf_notes_'+id)?.value||'';
+  if (!openDate||isNaN(pnlEur)) { alert('Open date and EUR P&L are required.'); return; }
+  const trades = store.cfdTrades(id);
+  trades.push({ direction, openDate, closeDate, openPrice:isNaN(openPrice)?null:openPrice, closePrice:isNaN(closePrice)?null:closePrice, size, pnlEur, notes });
+  trades.sort((a,b)=>(a.closeDate||a.openDate).localeCompare(b.closeDate||b.openDate));
+  await store.saveCfd(id, trades);
+  renderCfdTab(id);
+}
+
+async function deleteCfdTrade(id, idx) {
+  if (!confirm('Delete this trade?')) return;
+  const trades = store.cfdTrades(id);
+  trades.splice(idx,1);
+  await store.saveCfd(id, trades);
+  renderCfdTab(id);
+}
+
+function clearCfdForm(id) {
+  ['cf_oprice_','cf_cprice_','cf_pnl_','cf_notes_','cf_size_'].forEach(p=>{const el=document.getElementById(p+id);if(el)el.value='';});
+}
+
+// ══════════════════ BUILD TABS DOM ══════════════════
+function buildTabs() {
+  const etfContainer = document.getElementById('assetTabsContainer');
+  ASSETS.forEach(a => { const d=document.createElement('div'); d.className='tab-content'; d.id='tab-asset-'+a.id; etfContainer.appendChild(d); });
+  const cfdContainer = document.getElementById('cfdTabsContainer');
+  CFD_INSTRUMENTS.forEach(c => { const d=document.createElement('div'); d.className='tab-content'; d.id='tab-cfd-'+c.id; cfdContainer.appendChild(d); });
+}
+
+// ══════════════════ CLEAR ALL ══════════════════
+async function clearAllData() {
+  if (!confirm('Delete ALL trades and data from Supabase? This cannot be undone.')) return;
+  // Delete all rows from all tables
+  const tables = ['ibkr_trades','cfd_trades','cfd_account','app_state'];
+  await Promise.all(tables.map(t =>
+    fetch(`${SB_URL}/rest/v1/${t}?id=neq.__never__`, { method:'DELETE', headers: SB_HEADERS })
+  ));
+  localStorage.removeItem('priceCache');
+  localStorage.removeItem('lastUpdated');
+  location.reload();
+}
+
+// ══════════════════ LIVE PRICE FETCHING ══════════════════
+async function fetchYahooPrice(symbol) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  const data = await resp.json();
+  const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
+  if (!price) throw new Error('no price');
+  return price;
+}
+
+async function updatePrices() {
+  const priceEl = document.getElementById('priceStatus');
+  if (priceEl) priceEl.textContent = '⏳ Updating prices…';
+
+  // Check cache — skip if fetched within last 15 minutes
+  try {
+    const cached = JSON.parse(localStorage.getItem('priceCache') || '{}');
+    const age = Date.now() - (cached._ts || 0);
+    if (age < 15 * 60 * 1000 && cached._ts) {
+      // Apply cached prices
+      ASSETS.forEach(a => { if (cached[a.id] != null) a.price = cached[a.id]; });
+      if (priceEl) priceEl.textContent = '✓ Prices (cached ' + new Date(cached._ts).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) + ')';
+      renderOverview();
+      return;
+    }
+  } catch(e) {}
+
+  // Fetch all in parallel
+  const results = await Promise.allSettled(
+    ASSETS.map(a => fetchYahooPrice(a.yahoo))
+  );
+
+  const cache = { _ts: Date.now() };
+  let updated = 0, failed = 0;
+  ASSETS.forEach((a, i) => {
+    const r = results[i];
+    if (r.status === 'fulfilled' && r.value > 0) {
+      a.price = r.value;
+      cache[a.id] = r.value;
+      updated++;
+    } else {
+      cache[a.id] = a.price; // keep existing
+      failed++;
+    }
+  });
+
+  try { localStorage.setItem('priceCache', JSON.stringify(cache)); } catch(e) {} // per-device price cache is fine in localStorage
+
+  const timeStr = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  if (priceEl) {
+    if (failed === 0) {
+      priceEl.textContent = `✓ Prices live ${timeStr} (15-min delay)`;
+      priceEl.style.color = 'var(--green)';
+    } else if (updated > 0) {
+      priceEl.textContent = `⚠ ${updated} prices updated, ${failed} used fallback (${timeStr})`;
+      priceEl.style.color = 'var(--amber)';
+    } else {
+      priceEl.textContent = `⚠ Price fetch failed — using last known prices`;
+      priceEl.style.color = 'var(--amber)';
+    }
+  }
+
+  renderOverview();
+}
+
+// ══════════════════ INIT ══════════════════
+async function init() {
+  buildTabs();
+  await loadAllData();
+  // Seed 18 Oct 2026 IG statement data if CFD account not yet saved
+  if (!store.cfdAccount()) {
+    await store.saveCfdAccount({
+      statementDate: '2026-10-18',
+      funds: 3129.93,
+      equity: 2026.33,
+      openTrades: [{
+        instrument: 'Germany 40 Cash (DAX)',
+        direction: 'SHORT',
+        contracts: 2,
+        openDate: '2026-10-08',
+        openPrice: 24927.8,
+        stopLevel: 25927.8,
+        runningPnl: -1103.60,
+        deposit: 2492.78
+      }]
+    });
+  }
+  renderOverview();
+  updateLastUpdated();
+  updatePrices();
+}
+
+init();
+</script>
+</body>
+</html>
